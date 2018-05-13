@@ -15,9 +15,9 @@ YAE8080_State::YAE8080_State(){
   SP = 0;
   PC = 0;
 
-  registers = (uint8_t*) malloc(amount_regs);
-  memory    = (uint8_t*) malloc(mem_bytes);
-  iodevices = (uint8_t*) malloc(amount_IO);
+  registers = (uint_fast8_t*) malloc(amount_regs);
+  memory    = (uint_fast8_t*) malloc(mem_bytes);
+  iodevices = (uint_fast8_t*) malloc(amount_IO);
 
   cc = new YAE8080_ConditionCodes();
   cc->ac = 0;
@@ -29,8 +29,8 @@ YAE8080_State::YAE8080_State(){
   running = 1;
 }
 
-uint8_t parity(uint32_t ino) {
-  uint8_t noofones = 0;
+uint_fast8_t parity(uint32_t ino) {
+  uint_fast8_t noofones = 0;
   while(ino != 0) {
     noofones++;
     ino &= (ino-1); // the loop will execute once for each bit of ino set
@@ -54,7 +54,7 @@ YAE8080::~YAE8080(){
   free(state);
 }
 
-void YAE8080::writeMemory(uint16_t address, uint8_t data){
+void YAE8080::writeMemory(uint_fast16_t address, uint_fast8_t data){
   if (address < 0x2000){
       //        //printf("Writing ROM not allowed %x\n", address);
       return;
@@ -65,7 +65,7 @@ void YAE8080::writeMemory(uint16_t address, uint8_t data){
   state->memory[address] = data;
 }
 
-void YAE8080::writeIO(uint8_t address, uint8_t data){
+void YAE8080::writeIO(uint_fast8_t address, uint_fast8_t data){
   //This gets only called if an i/O op Happens :)
   uint32_t imd0, imd1;
   switch(address){
@@ -87,7 +87,7 @@ void YAE8080::writeIO(uint8_t address, uint8_t data){
   }
 }
 
-uint8_t YAE8080::readIO(uint8_t address){
+uint_fast8_t YAE8080::readIO(uint_fast8_t address){
   uint32_t imd0, imd1;
   switch(address){
     case 0x03:
@@ -107,15 +107,15 @@ void YAE8080::fireInterrupt(int interrupt_num){
   state->PC = 8 * interrupt_num;
 }
 
-void YAE8080::loadIntoMemory(uint16_t offset,uint8_t* data, int length){
+void YAE8080::loadIntoMemory(uint_fast16_t offset,uint_fast8_t* data, int length){
   memcpy(&state->memory[offset], data, length);
 }
 
 void YAE8080::stepEmulator(){
   //get Instruction
-  uint8_t op = state->memory[state->PC];
-  uint8_t *opcode = (state->memory+state->PC);
-  uint8_t opbytes = 1;
+  uint_fast8_t op = state->memory[state->PC];
+  uint_fast8_t *opcode = (state->memory+state->PC);
+  uint_fast8_t opbytes = 1;
 
   //NOP
   if(op == 0x00){
@@ -124,14 +124,14 @@ void YAE8080::stepEmulator(){
   };
 
   //MOV-tmp vars::
-  uint8_t dest, src;
+  uint_fast8_t dest, src;
 
   //Math intermediate Variables
   uint32_t imd0, imd1;
 
   //FUCK FUCK FUCK TODO -> check if dual thigies want to address the stackpointer!!!!!!!!!!
   //This should be fixed :)
-  uint8_t tmp = (op>>6);
+  uint_fast8_t tmp = (op>>6);
   switch(tmp){
     //SIZE:OK
     //INS:OK
@@ -643,7 +643,7 @@ void YAE8080::stepEmulator(){
               //printf("%s 0x0%x\n", "POP", dest);
               imd0 = state->memory[state->SP] | state->memory[state->SP+1]<<8;
               if(dest == 0x03){
-                uint8_t psw = (imd0) & 0xFF;
+                uint_fast8_t psw = (imd0) & 0xFF;
                 state->registers[0x07] = imd0>>8 & 0xFF;
                 state->cc->z   = (psw)   &0x01;
                 state->cc->s   = (psw>>1)&0x01;
@@ -838,7 +838,7 @@ void YAE8080::stepEmulator(){
                       {
                           if (state->registers[0x01] == 9)
                           {
-                              uint16_t offset = (state->registers[0x02]<<8) | (state->registers[0x03]);
+                              uint_fast16_t offset = (state->registers[0x02]<<8) | (state->registers[0x03]);
                               char *str = (char*) &state->memory[offset+3];  //skip the prefix bytes
                               while (*str != '$')
                                   //printf("%c", *str++);
@@ -869,12 +869,12 @@ void YAE8080::stepEmulator(){
             src = (op>>4)&0x03;
             //printf("%s 0x0%x\n", "PUSH", src);
             if(src == 0x03){
-              // uint8_t psw = (state->cc->z |
+              // uint_fast8_t psw = (state->cc->z |
         			// 				state->cc->s << 1 |
         			// 				state->cc->p << 2 |
         			// 				state->cc->cy << 3 |
         			// 				state->cc->ac << 4 );
-              uint8_t psw = (state->cc->s<<7)|(state->cc->z<<6)|(0<<5)|(state->cc->ac<<4)|(0<<3)|(state->cc->p<<2)|(1<<1)|(state->cc->cy);
+              uint_fast8_t psw = (state->cc->s<<7)|(state->cc->z<<6)|(0<<5)|(state->cc->ac<<4)|(0<<3)|(state->cc->p<<2)|(1<<1)|(state->cc->cy);
               writeMemory(state->SP-1, state->registers[0x07]);
               writeMemory(state->SP-2, psw);
             }else{
@@ -1014,20 +1014,3 @@ void YAE8080::stepEmulator(){
   state->PC+=opbytes;
 }
 
-
-/*
-void ReadFileIntoMemoryAt(State8080* state, char* filename, uint32_t offset){
-	FILE *f= fopen(filename, "rb");
-	if (f==NULL)
-	{
-		printf("error: Couldn't open %s\n", filename);
-		exit(1);
-	}
-	fseek(f, 0L, SEEK_END);
-	int fsize = ftell(f);
-	fseek(f, 0L, SEEK_SET);
-
-	uint8_t *buffer = &state->memory[offset];
-	fread(buffer, fsize, 1, f);
-	fclose(f);
-}*/
